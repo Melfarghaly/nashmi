@@ -30,10 +30,48 @@ class ProductController extends Controller
 
     public function product_details($slug, $user_id)
     {
-        $product = Product::where('slug', $slug)->get();
+        $product = Product::where('id', $slug)->get();
         if(get_setting('last_viewed_product_activation') == 1 && $user_id != null){
             lastViewedProducts($product[0]->id, $user_id);
         }
+        return new ProductDetailCollection($product);
+    }
+    public function product_details_id($id)
+    {
+        $product = Product::where('id', $id)->get();
+        if(count($product) == 0){
+            return response()->json([
+                'data' => null,
+                'success' => false,
+                'status' => 404
+            ], 404);
+        }
+       
+        //similar to product_details but without user_id
+
+        //dd($product);
+
+        return new ProductDetailCollection($product);
+    }
+    public function similarProducts($id)
+    {
+
+        $product = Product::where('id', $id)->first();
+        $product = Product::where('category_id', $product->category_id)->where('id', '!=', $id)->physical();
+        return new ProductMiniCollection(filter_products($product)->limit(10)->get());
+        
+        if(count($product) == 0){
+            return response()->json([
+                'data' => null,
+                'success' => false,
+                'status' => 404
+            ], 404);
+        }
+       
+        //similar to product_details but without user_id
+
+        //dd($product);
+        
         return new ProductDetailCollection($product);
     }
 
@@ -156,7 +194,10 @@ class ProductController extends Controller
 
     public function categoryProducts($slug, Request $request)
     {
-        $category = Category::where('slug', $slug)->first();
+        $category = Category::where('id', $slug)->first();
+        if (!$category) {
+            return new ProductMiniCollection(collect());
+        }
         $category = Category::with('childrenCategories')->find($category->id);
         $products = $category->products();
 
@@ -169,7 +210,7 @@ class ProductController extends Controller
 
     public function brand($slug, Request $request)
     {
-        $brand = Brand::where('slug', $slug)->first();
+        $brand = Brand::where('id', $slug)->first();
         $products = Product::where('brand_id', $brand->id)->physical();
         if ($request->name != "" || $request->name != null) {
             $products = $products->where('name', 'like', '%' . $request->name . '%');
@@ -224,14 +265,14 @@ class ProductController extends Controller
 
     public function frequentlyBought($slug)
     {
-        $product = Product::where("slug", $slug)->first();
+        $product = Product::where("id", $slug)->first();
         $products = get_frequently_bought_products($product);
         return new ProductMiniCollection($products);
     }
 
     public function topFromSeller($slug)
     {
-        $product = Product::where("slug", $slug)->first();
+        $product = Product::where("id", $slug)->first();
         $products = Product::where('user_id', $product->user_id)->orderBy('num_of_sale', 'desc')->physical();
         return new ProductMiniCollection(filter_products($products)->limit(10)->get());
     }
